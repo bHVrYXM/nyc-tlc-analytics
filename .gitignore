@@ -221,6 +221,7 @@ __marimo__/
 # _________________________________
 # --- Data & warehouse ---
 data/
+!data/README.md
 
 # --- dbt build artifacts ---
 target/
