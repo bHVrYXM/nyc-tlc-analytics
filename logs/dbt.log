@@ -1,0 +1,28 @@
+
+
+============================== 17:09:08.446454 | cde793d0-d302-46a1-8400-0501363dc951 ==============================
+[0m17:09:08.446454 [info ] [MainThread]: Running with dbt=1.11.9
+[0m17:09:08.468691 [debug] [MainThread]: running dbt with arguments {'version_check': 'True', 'debug': 'False', 'fail_fast': 'False', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'log_cache_events': 'False', 'partial_parse': 'True', 'target_path': 'None', 'printer_width': '80', 'log_format': 'default', 'use_experimental_parser': 'False', 'no_print': 'None', 'indirect_selection': 'eager', 'send_anonymous_usage_stats': 'False', 'empty': 'None', 'profiles_dir': '/Users/lukas/.dbt', 'log_path': 'logs', 'static_parser': 'True', 'introspect': 'True', 'use_colors': 'True', 'quiet': 'False', 'write_json': 'True', 'cache_selected_only': 'False', 'warn_error': 'None', 'invocation_command': 'dbt init nyc_tlc'}
+[0m17:09:08.500931 [info ] [MainThread]: Creating dbt configuration folder at /Users/lukas/.dbt
+[0m17:09:08.502158 [debug] [MainThread]: Starter project path: /Users/lukas/.local/share/uv/tools/dbt-core/lib/python3.11/site-packages/dbt/include/starter_project
+[0m17:09:08.506390 [info ] [MainThread]: 
+Your new dbt project "nyc_tlc" was created!
+
+For more information on how to configure the profiles.yml file,
+please consult the dbt documentation here:
+
+  https://docs.getdbt.com/docs/configure-your-profile
+
+One more thing:
+
+Need help? Don't hesitate to reach out to us via GitHub issues or on Slack:
+
+  https://community.getdbt.com/
+
+Happy modeling!
+
+[0m17:09:08.506631 [info ] [MainThread]: Setting up your profile.
+[0m17:09:16.854762 [info ] [MainThread]: Profile nyc_tlc written to /Users/lukas/.dbt/profiles.yml using target's sample configuration. Once updated, you'll be able to start developing with dbt.
+[0m17:09:16.869066 [debug] [MainThread]: Resource report: {"command_name": "init", "command_success": true, "command_wall_clock_time": 8.463458, "process_in_blocks": "0", "process_kernel_time": 0.199444, "process_mem_max_rss": "146964480", "process_out_blocks": "0", "process_user_time": 0.798077}
+[0m17:09:16.869448 [debug] [MainThread]: Command `dbt init` succeeded at 17:09:16.869372 after 8.46 seconds
+[0m17:09:16.869670 [debug] [MainThread]: Flushing usage events

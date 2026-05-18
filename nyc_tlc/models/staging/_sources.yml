@@ -1,0 +1,166 @@
+version: 2
+
+sources:
+  - name: tlc_raw
+    description: >
+      Raw NYC TLC trip records, downloaded as Parquet files from the
+      NYC Taxi & Limousine Commission (data.cityofnewyork.us).
+      Files are gitignored — run `make data` from the project root
+      to populate data/raw/ before running dbt.
+
+    tables:
+      - name: yellow_tripdata
+        description: >
+          Yellow Medallion Taxicab trips (Jan–Mar 2024).
+          Covers traditional yellow cabs operating across all five boroughs.
+        config:
+          external_location: "read_parquet('data/raw/yellow_tripdata_*.parquet')"
+        columns:
+          - name: VendorID
+            description: "TPEP provider (1 = Creative Mobile Technologies, 2 = VeriFone)"
+          - name: tpep_pickup_datetime
+            description: "Timestamp when the meter was engaged"
+          - name: tpep_dropoff_datetime
+            description: "Timestamp when the meter was disengaged"
+          - name: passenger_count
+            description: "Number of passengers (driver-entered)"
+          - name: trip_distance
+            description: "Elapsed trip distance in miles"
+          - name: RatecodeID
+            description: "Final rate code (1=Standard, 2=JFK, 3=Newark, 4=Nassau/Westchester, 5=Negotiated, 6=Group)"
+          - name: PULocationID
+            description: "TLC Taxi Zone where the meter was engaged"
+          - name: DOLocationID
+            description: "TLC Taxi Zone where the meter was disengaged"
+          - name: payment_type
+            description: "Payment method (1=Credit card, 2=Cash, 3=No charge, 4=Dispute, 5=Unknown, 6=Voided)"
+          - name: fare_amount
+            description: "Metered fare amount in USD"
+          - name: extra
+            description: "Miscellaneous extras and surcharges"
+          - name: mta_tax
+            description: "MTA tax ($0.50 automatically triggered)"
+          - name: tip_amount
+            description: "Credit card tip amount (cash tips not included)"
+          - name: tolls_amount
+            description: "Total amount of all tolls paid"
+          - name: improvement_surcharge
+            description: "Improvement surcharge assessed at flag drop ($0.30)"
+          - name: total_amount
+            description: "Total amount charged to passengers"
+          - name: congestion_surcharge
+            description: "Congestion surcharge for trips in/from Manhattan south of 96th St"
+          - name: Airport_fee
+            description: "Airport pickup surcharge (JFK and LaGuardia)"
+
+      - name: green_tripdata
+        description: >
+          Green Boro Taxi trips (Jan–Mar 2024).
+          Covers outer-borough and northern Manhattan trips only.
+        config:
+          external_location: "read_parquet('data/raw/green_tripdata_*.parquet')"
+        columns:
+          - name: VendorID
+            description: "LPEP provider (1 = Creative Mobile Technologies, 2 = VeriFone)"
+          - name: lpep_pickup_datetime
+            description: "Timestamp when the meter was engaged"
+          - name: lpep_dropoff_datetime
+            description: "Timestamp when the meter was disengaged"
+          - name: passenger_count
+            description: "Number of passengers (driver-entered)"
+          - name: trip_distance
+            description: "Elapsed trip distance in miles"
+          - name: RatecodeID
+            description: "Final rate code (same encoding as yellow)"
+          - name: PULocationID
+            description: "TLC Taxi Zone where the meter was engaged"
+          - name: DOLocationID
+            description: "TLC Taxi Zone where the meter was disengaged"
+          - name: payment_type
+            description: "Payment method (same encoding as yellow)"
+          - name: fare_amount
+            description: "Metered fare amount in USD"
+          - name: extra
+            description: "Miscellaneous extras and surcharges"
+          - name: mta_tax
+            description: "MTA tax"
+          - name: tip_amount
+            description: "Tip amount"
+          - name: tolls_amount
+            description: "Total tolls paid"
+          - name: ehail_fee
+            description: "E-hail fee (green-specific; typically null)"
+          - name: improvement_surcharge
+            description: "Improvement surcharge"
+          - name: total_amount
+            description: "Total amount charged"
+          - name: trip_type
+            description: "How the trip was initiated (1=Street hail, 2=Dispatch)"
+          - name: congestion_surcharge
+            description: "Congestion surcharge"
+
+      - name: fhvhv_tripdata
+        description: >
+          High-Volume For-Hire Vehicle trips (Jan–Mar 2024).
+          Covers Uber (HV0003) and Lyft (HV0005) — the largest share of NYC rideshare volume.
+        config:
+          external_location: "read_parquet('data/raw/fhvhv_tripdata_*.parquet')"
+        columns:
+          - name: hvfhs_license_num
+            description: "HVFHS license (HV0002=Juno, HV0003=Uber, HV0004=Via, HV0005=Lyft)"
+          - name: dispatching_base_num
+            description: "TLC base license number of the dispatching base"
+          - name: originating_base_num
+            description: "TLC base that originated the request (may be null)"
+          - name: request_datetime
+            description: "When the passenger requested the trip"
+          - name: on_scene_datetime
+            description: "When the driver arrived at pickup (may be null)"
+          - name: pickup_datetime
+            description: "Timestamp when the trip began"
+          - name: dropoff_datetime
+            description: "Timestamp when the trip ended"
+          - name: PULocationID
+            description: "TLC Taxi Zone for pickup"
+          - name: DOLocationID
+            description: "TLC Taxi Zone for dropoff"
+          - name: trip_miles
+            description: "Trip distance in miles"
+          - name: trip_time
+            description: "Trip duration in seconds"
+          - name: base_passenger_fare
+            description: "Base fare before tips, tolls, and surcharges"
+          - name: tolls
+            description: "Total tolls paid"
+          - name: bcf
+            description: "Black Car Fund surcharge"
+          - name: sales_tax
+            description: "NYS sales tax"
+          - name: congestion_surcharge
+            description: "Congestion surcharge"
+          - name: airport_fee
+            description: "Airport pickup/dropoff fee"
+          - name: tips
+            description: "Tip amount"
+          - name: driver_pay
+            description: "Total driver pay (not passenger-facing)"
+          - name: shared_request_flag
+            description: "Y if passenger requested a shared/pool ride"
+          - name: shared_match_flag
+            description: "Y if trip was actually matched as shared"
+
+      - name: taxi_zone_lookup
+        description: >
+          TLC Taxi Zone reference table mapping LocationID to borough, zone name,
+          and service zone. 265 zones covering all five boroughs plus Newark Airport.
+        config:
+          external_location: "read_csv('data/raw/taxi_zone_lookup.csv', header=true)"
+        columns:
+          - name: LocationID
+            description: "Unique zone identifier (1–265)"
+          - name: Borough
+            description: "NYC borough or EWR for Newark Airport"
+          - name: Zone
+            description: "Human-readable zone name"
+          - name: service_zone
+            description: "Service zone category (Yellow Zone, Boro Zone, EWR)"

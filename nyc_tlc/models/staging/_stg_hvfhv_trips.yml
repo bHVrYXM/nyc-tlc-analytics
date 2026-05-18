@@ -1,0 +1,124 @@
+version: 2
+
+models:
+  - name: stg_hvfhv_trips
+    description: >
+      Cleaned and typed High-Volume For-Hire Vehicle trips (Jan–Mar 2024).
+      Covers Uber (HV0003) and Lyft (HV0005). Column names differ significantly
+      from yellow/green: pickup_datetime → pickup_at, base_passenger_fare →
+      fare_amount, tips → tip_amount. total_amount is reconstructed by summing
+      all fare components. passenger_count and vendor_id are null (not collected
+      in HVFHV data).
+    columns:
+      - name: trip_id
+        description: "MD5 surrogate key over (hvfhs_license_num, pickup_at, dropoff_at, pickup_zone_id, dropoff_zone_id, base_passenger_fare)"
+        data_tests:
+          - not_null
+          - unique:
+              config:
+                severity: warn
+
+      - name: pickup_at
+        description: "Timestamp when the trip began"
+        data_tests:
+          - not_null
+
+      - name: dropoff_at
+        description: "Timestamp when the trip ended (always > pickup_at after filtering)"
+        data_tests:
+          - not_null
+
+      - name: pickup_zone_id
+        description: "TLC Taxi Zone ID for pickup"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_zone_lookup')
+                field: location_id
+
+      - name: dropoff_zone_id
+        description: "TLC Taxi Zone ID for dropoff"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_zone_lookup')
+                field: location_id
+
+      - name: fare_amount
+        description: "Base passenger fare (closest analog to metered fare in yellow/green)"
+        data_tests:
+          - not_null
+
+      - name: tip_amount
+        description: "Tip amount"
+        data_tests:
+          - not_null
+
+      - name: total_amount
+        description: "Reconstructed total: base_fare + tolls + bcf + sales_tax + congestion + airport_fee + tips"
+        data_tests:
+          - not_null
+
+      - name: vendor_id
+        description: "Always null for HVFHV trips (use hvfhs_license_num instead)"
+
+      - name: vehicle_class
+        description: "Always 'hvfhv' for this model"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['hvfhv']
+
+      - name: passenger_count
+        description: "Always null — not collected in HVFHV data"
+
+      - name: trip_distance_miles
+        description: "Trip distance in miles (from trip_miles)"
+        data_tests:
+          - not_null
+
+      - name: hvfhs_license_num
+        description: "HVFHS operator license number"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['HV0002', 'HV0003', 'HV0004', 'HV0005']
+              config:
+                severity: warn
+
+      - name: trip_time_seconds
+        description: "Trip duration in seconds"
+      - name: dispatching_base_num
+        description: "TLC base that dispatched the trip"
+      - name: originating_base_num
+        description: "TLC base that originated the request (may be null)"
+      - name: request_at
+        description: "When the passenger requested the trip"
+      - name: on_scene_at
+        description: "When the driver arrived at pickup location (may be null)"
+      - name: tolls_amount
+        description: "Total tolls paid"
+      - name: bcf
+        description: "Black Car Fund surcharge"
+      - name: sales_tax
+        description: "NYS sales tax"
+      - name: congestion_surcharge
+        description: "Congestion surcharge"
+      - name: airport_fee
+        description: "Airport fee"
+      - name: driver_pay
+        description: "Total driver pay (not passenger-facing)"
+      - name: shared_request_flag
+        description: "Y if passenger requested a shared ride"
+      - name: shared_match_flag
+        description: "Y if trip was actually matched as shared"
+      - name: access_a_ride_flag
+        description: "Y if MTA Access-A-Ride trip"
+      - name: wav_request_flag
+        description: "Y if wheelchair-accessible vehicle was requested"
+      - name: wav_match_flag
+        description: "Y if a WAV was provided"

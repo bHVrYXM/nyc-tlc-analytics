@@ -1,0 +1,117 @@
+version: 2
+
+models:
+  - name: stg_yellow_trips
+    description: >
+      Cleaned and typed Yellow Medallion Taxicab trips (Jan–Mar 2024).
+      Columns are renamed to the project canonical schema. Rows with invalid
+      timestamps (pickup >= dropoff), negative fares, zero distance, or null
+      zone IDs are excluded. See stg_trip_reject_audit for rejection counts.
+    columns:
+      - name: trip_id
+        description: "MD5 surrogate key over (vendor_id, pickup_at, dropoff_at, pickup_zone_id, dropoff_zone_id, total_amount)"
+        data_tests:
+          - not_null
+          - unique:
+              config:
+                severity: warn
+
+      - name: pickup_at
+        description: "Timestamp when the meter was engaged"
+        data_tests:
+          - not_null
+
+      - name: dropoff_at
+        description: "Timestamp when the meter was disengaged (always > pickup_at after filtering)"
+        data_tests:
+          - not_null
+
+      - name: pickup_zone_id
+        description: "TLC Taxi Zone ID for pickup"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_zone_lookup')
+                field: location_id
+
+      - name: dropoff_zone_id
+        description: "TLC Taxi Zone ID for dropoff"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_zone_lookup')
+                field: location_id
+
+      - name: fare_amount
+        description: "Metered fare in USD (non-negative after filtering)"
+        data_tests:
+          - not_null
+
+      - name: tip_amount
+        description: "Credit card tip in USD"
+        data_tests:
+          - not_null
+
+      - name: total_amount
+        description: "Total amount charged (non-negative after filtering)"
+        data_tests:
+          - not_null
+
+      - name: vendor_id
+        description: "TPEP provider identifier (1=CMT, 2=VeriFone, 6=unknown third party)"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 6]
+
+      - name: vehicle_class
+        description: "Always 'yellow' for this model"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['yellow']
+
+      - name: passenger_count
+        description: "Number of passengers (driver-entered; may be null in source)"
+
+      - name: trip_distance_miles
+        description: "Elapsed trip distance in miles (> 0 after filtering)"
+        data_tests:
+          - not_null
+
+      - name: rate_code_id
+        description: "Final rate code applied to the trip"
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6]
+              config:
+                severity: warn
+
+      - name: payment_type
+        description: "Payment method code"
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5, 6]
+              config:
+                severity: warn
+
+      - name: extra
+        description: "Miscellaneous extras and surcharges"
+      - name: mta_tax
+        description: "MTA tax ($0.50)"
+      - name: tolls_amount
+        description: "Total tolls paid"
+      - name: improvement_surcharge
+        description: "Improvement surcharge"
+      - name: congestion_surcharge
+        description: "Congestion surcharge for Manhattan south of 96th St"
+      - name: airport_fee
+        description: "Airport pickup surcharge"
+      - name: store_and_fwd_flag
+        description: "Whether the trip record was held in vehicle memory before sending (Y/N)"

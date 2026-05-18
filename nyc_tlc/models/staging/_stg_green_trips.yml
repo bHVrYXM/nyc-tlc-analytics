@@ -1,0 +1,125 @@
+version: 2
+
+models:
+  - name: stg_green_trips
+    description: >
+      Cleaned and typed Green Boro Taxi trips (Jan–Mar 2024).
+      Green taxis serve outer boroughs and northern Manhattan.
+      Canonical schema aligns with stg_yellow_trips; the lpep_* timestamp
+      columns are renamed to pickup_at / dropoff_at, and airport_fee is null
+      (green taxis don't serve airports directly).
+    columns:
+      - name: trip_id
+        description: "MD5 surrogate key over (vendor_id, pickup_at, dropoff_at, pickup_zone_id, dropoff_zone_id, total_amount)"
+        data_tests:
+          - not_null
+          - unique
+
+      - name: pickup_at
+        description: "Timestamp when the meter was engaged (from lpep_pickup_datetime)"
+        data_tests:
+          - not_null
+
+      - name: dropoff_at
+        description: "Timestamp when the meter was disengaged (always > pickup_at after filtering)"
+        data_tests:
+          - not_null
+
+      - name: pickup_zone_id
+        description: "TLC Taxi Zone ID for pickup"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_zone_lookup')
+                field: location_id
+
+      - name: dropoff_zone_id
+        description: "TLC Taxi Zone ID for dropoff"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_zone_lookup')
+                field: location_id
+
+      - name: fare_amount
+        description: "Metered fare in USD"
+        data_tests:
+          - not_null
+
+      - name: tip_amount
+        description: "Credit card tip in USD"
+        data_tests:
+          - not_null
+
+      - name: total_amount
+        description: "Total amount charged"
+        data_tests:
+          - not_null
+
+      - name: vendor_id
+        description: "LPEP provider identifier"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2]
+
+      - name: vehicle_class
+        description: "Always 'green' for this model"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['green']
+
+      - name: passenger_count
+        description: "Number of passengers (driver-entered)"
+
+      - name: trip_distance_miles
+        description: "Elapsed trip distance in miles"
+        data_tests:
+          - not_null
+
+      - name: rate_code_id
+        description: "Final rate code"
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6]
+              config:
+                severity: warn
+
+      - name: payment_type
+        description: "Payment method code"
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3, 4, 5, 6]
+              config:
+                severity: warn
+
+      - name: trip_type
+        description: "How trip was initiated (1=Street hail, 2=Dispatch)"
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1, 2]
+              config:
+                severity: warn
+
+      - name: extra
+        description: "Miscellaneous extras and surcharges"
+      - name: mta_tax
+        description: "MTA tax"
+      - name: tolls_amount
+        description: "Total tolls paid"
+      - name: improvement_surcharge
+        description: "Improvement surcharge"
+      - name: congestion_surcharge
+        description: "Congestion surcharge"
+      - name: airport_fee
+        description: "Always null for green taxis"
+      - name: store_and_fwd_flag
+        description: "Whether the trip record was held in vehicle memory before sending (Y/N)"

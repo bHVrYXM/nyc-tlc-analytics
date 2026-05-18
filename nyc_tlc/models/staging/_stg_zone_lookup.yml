@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: stg_zone_lookup
+    description: >
+      TLC Taxi Zone reference table. Maps the integer LocationID used across
+      all trip tables to a human-readable borough, zone name, and service zone
+      category. 265 zones covering all five NYC boroughs plus Newark Airport.
+    columns:
+      - name: location_id
+        description: "Unique TLC Taxi Zone identifier (1–265)"
+        data_tests:
+          - not_null
+          - unique
+
+      - name: borough
+        description: "NYC borough or EWR for Newark Airport"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - Manhattan
+                  - Brooklyn
+                  - Queens
+                  - Bronx
+                  - Staten Island
+                  - EWR
+                  - Unknown
+                  - N/A
+
+      - name: zone_name
+        description: "Human-readable zone name (e.g. 'JFK Airport', 'Times Sq/Theatre District')"
+        data_tests:
+          - not_null
+
+      - name: service_zone
+        description: "Service zone category (Yellow Zone, Boro Zone, Airports, EWR)"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - Yellow Zone
+                  - Boro Zone
+                  - Airports
+                  - EWR
+                  - N/A
+              config:
+                severity: warn
