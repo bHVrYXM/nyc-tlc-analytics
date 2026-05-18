@@ -29,3 +29,9 @@ models:
   nyc_tlc:
     staging:
       +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table
+      core:
+        +materialized: table

@@ -1,0 +1,138 @@
+version: 2
+
+models:
+  - name: int_trips_unified
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - trip_id
+            - vehicle_class
+    description: >
+      Union of all three TLC vehicle classes (yellow taxi, green taxi, HVFHV/rideshare)
+      on the canonical schema defined in staging. This is the single source of truth
+      for all mart models — downstream models should ref this rather than querying
+      individual staging tables directly.
+
+      HVFHV-specific fields (hvfhs_license_num, driver_pay, etc.) are intentionally
+      dropped here. They remain available in stg_hvfhv_trips for ad-hoc use.
+
+      Materialized as a table (not a view) because the underlying sources are 9
+      large parquet files — recomputing from raw on every downstream query causes
+      out-of-memory errors and unnecessary I/O.
+    columns:
+      - name: trip_id
+        description: >
+          Surrogate key generated in staging from identity + timestamp fields.
+          Unique within each vehicle class, but not globally unique across the
+          union — a yellow and green trip can share a trip_id if their hashed
+          fields happen to collide. Use (trip_id, vehicle_class) as the composite
+          key for deduplication.
+        tests:
+          - not_null
+
+      - name: vehicle_class
+        description: One of 'yellow', 'green', or 'hvfhv'.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['yellow', 'green', 'hvfhv']
+
+      - name: pickup_at
+        description: Trip pickup timestamp (canonical name across all vehicle classes).
+        tests:
+          - not_null
+
+      - name: dropoff_at
+        description: Trip dropoff timestamp.
+        tests:
+          - not_null
+
+      - name: pickup_date
+        description: Date portion of pickup_at. Used as the partition key in fct_trips.
+        tests:
+          - not_null
+
+      - name: pickup_zone_id
+        description: TLC location ID for the pickup zone. FK to dim_zones.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_zones')
+              field: location_id
+
+      - name: dropoff_zone_id
+        description: TLC location ID for the dropoff zone. FK to dim_zones.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_zones')
+              field: location_id
+
+      - name: fare_amount
+        description: >
+          Base fare. For HVFHV this is base_passenger_fare from the raw data,
+          which is the closest equivalent to the metered fare in yellow/green.
+        tests:
+          - not_null
+
+      - name: total_amount
+        description: >
+          Total charged to the passenger including all surcharges and tips.
+          For HVFHV this is reconstructed from components in staging.
+        tests:
+          - not_null
+
+      - name: vendor_id
+        description: >
+          Vendor identifier. NULL for HVFHV trips (rideshare companies are
+          identified by hvfhs_license_num in the raw data, which is not carried
+          into this unified model).
+
+      - name: passenger_count
+        description: Number of passengers. NULL for HVFHV (not collected).
+
+      - name: payment_type
+        description: >
+          Payment method code (1=Credit Card, 2=Cash, etc.). NULL for HVFHV
+          trips — rideshare payment is handled in-app and not reported to TLC.
+
+  - name: int_trip_anomalies
+    description: >
+      Row-level anomaly detail: trips that failed at least one quality check
+      in the staging filter, labelled with their first (most severe) failure reason.
+
+      Unlike stg_trip_reject_audit (which gives aggregate counts per vehicle class),
+      this model preserves individual rejected rows so the dashboard Data Quality
+      page can show real examples and the reject rate can be sliced by reason.
+
+      Materialized as a table because it reads directly from raw sources and
+      would be expensive to recompute on every downstream query.
+    columns:
+      - name: vehicle_class
+        description: Vehicle class of the rejected trip.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['yellow', 'green', 'hvfhv']
+
+      - name: rejection_reason
+        description: >
+          First failing check, in priority order: invalid_timestamps,
+          null_pickup_zone, null_dropoff_zone, negative_fare,
+          negative_total, zero_distance.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - invalid_timestamps
+                - null_pickup_zone
+                - null_dropoff_zone
+                - negative_fare
+                - negative_total
+                - zero_distance
+
+      - name: pickup_at
+        description: Raw pickup timestamp (may be null or invalid — that's the point).
+
+      - name: fare_amount
+        description: Raw fare amount (may be negative — that's the point).

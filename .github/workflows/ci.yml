@@ -1,0 +1,89 @@
+name: dbt CI
+
+on:
+  pull_request:
+    branches: [main]
+  # Allow manual triggers for testing the workflow itself
+  workflow_dispatch:
+
+jobs:
+  dbt-build:
+    name: dbt build (modified models only)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: nyc_tlc
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Python + dbt ──────────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dbt
+        run: pip install -r requirements.txt
+
+      - name: Install dbt packages
+        run: dbt deps
+
+      # ── Data: 1-month slice for CI speed ──────────────────────────────────────
+      # Only Jan 2024 — keeps the build under 5 minutes.
+      # Adjust by setting CI_MONTHS in repo Settings → Secrets and variables.
+      - name: Download CI data slice
+        env:
+          CI_MONTHS: "2024-01"
+        run: |
+          mkdir -p data/raw
+          for month in $CI_MONTHS; do
+            curl -sSL -o data/raw/yellow_tripdata_${month}.parquet \
+              "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_${month}.parquet"
+            curl -sSL -o data/raw/green_tripdata_${month}.parquet \
+              "https://d37ci6vzurychx.cloudfront.net/trip-data/green_tripdata_${month}.parquet"
+            curl -sSL -o data/raw/fhvhv_tripdata_${month}.parquet \
+              "https://d37ci6vzurychx.cloudfront.net/trip-data/fhvhv_tripdata_${month}.parquet"
+          done
+          curl -sSL -o data/raw/taxi_zone_lookup.csv \
+            "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
+
+      # ── dbt profiles ─────────────────────────────────────────────────────────
+      # profiles.yml.example uses a local DuckDB path — copy it for CI use.
+      - name: Configure dbt profile
+        run: |
+          mkdir -p ~/.dbt
+          cp profiles.yml.example ~/.dbt/profiles.yml
+
+      # ── State: restore previous manifest for slim CI ──────────────────────────
+      # Without a previous manifest, dbt falls back to building all models.
+      - name: Restore dbt state (previous manifest)
+        uses: actions/cache@v4
+        with:
+          path: nyc_tlc/target/manifest.json
+          key: dbt-manifest-${{ github.base_ref }}
+          restore-keys: |
+            dbt-manifest-
+
+      # ── dbt build ─────────────────────────────────────────────────────────────
+      - name: dbt build — modified models + downstream
+        run: |
+          # If a previous manifest exists, run only modified models + their deps.
+          # On the first run (no cache hit), build everything.
+          if [ -f target/manifest.json ]; then
+            dbt build --select state:modified+ --state target/
+          else
+            dbt build
+          fi
+
+      # ── Save updated manifest for next run ───────────────────────────────────
+      - name: Save updated dbt manifest
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: nyc_tlc/target/manifest.json
+          key: dbt-manifest-${{ github.base_ref }}-${{ github.run_id }}

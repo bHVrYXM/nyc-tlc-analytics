@@ -1,0 +1,196 @@
+version: 2
+
+models:
+  - name: dim_zones
+    description: >
+      Taxi zone dimension — one row per TLC location_id. Enriches the raw
+      zone lookup with borough_group, which separates airport zones from the
+      borough they physically sit in (JFK and LaGuardia are in Queens, but their
+      fare profile is an outlier that skews borough-level aggregations).
+    columns:
+      - name: location_id
+        description: TLC zone identifier. Primary key.
+        tests:
+          - not_null
+          - unique
+
+      - name: zone_name
+        description: Human-readable zone name as published by TLC.
+        tests:
+          - not_null
+
+      - name: borough
+        description: NYC borough.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island', 'EWR', 'Unknown', 'N/A']
+
+      - name: service_zone
+        description: TLC service zone classification (Yellow Zone, Boro Zone, etc.).
+        tests:
+          - not_null
+
+      - name: borough_group
+        description: >
+          Analytical grouping used by dashboard heatmap and equity analysis.
+          Airports are separated from their parent borough to prevent fare outliers
+          from skewing borough-level averages.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Airport', 'Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island', 'Other / Unknown']
+
+  - name: dim_date
+    description: >
+      Date spine covering 2023-12-01 through 2024-12-31, with buffer on both ends
+      to accommodate late-arriving trips at month boundaries in TLC parquet files.
+      Provides pre-computed calendar attributes — day of week, week start, quarter,
+      is_weekend flag — so the dashboard avoids runtime date math on every query.
+      Extend the end_date macro argument when scaling to multi-year data.
+    columns:
+      - name: date_day
+        description: Calendar date. Primary key.
+        tests:
+          - not_null
+          - unique
+
+      - name: is_weekend
+        description: True if the date falls on Saturday or Sunday (ISO dow >= 6).
+        tests:
+          - not_null
+
+  - name: dim_vehicle_class
+    description: >
+      Vehicle class dimension — static reference table for the three TLC vehicle
+      classes. Provides display labels and the is_rideshare flag used by dashboard
+      mode-share charts.
+    columns:
+      - name: vehicle_class
+        description: Vehicle class code. Primary key. One of yellow, green, hvfhv.
+        tests:
+          - not_null
+          - unique
+          - accepted_values:
+              values: ['yellow', 'green', 'hvfhv']
+
+      - name: display_name
+        description: Human-readable label for dashboard filters.
+        tests:
+          - not_null
+
+      - name: is_rideshare
+        description: True for HVFHV (Uber/Lyft); false for metered taxis.
+        tests:
+          - not_null
+
+  - name: dim_payment_types
+    description: >
+      Payment type dimension — maps TLC integer payment codes to human-readable
+      labels. Yellow and green taxis report payment_type; HVFHV does not (payment
+      is handled in-app). Code 0 is a synthetic catch-all for HVFHV trips so that
+      fct_trips can always join to this dimension without null key failures.
+    columns:
+      - name: payment_type_id
+        description: TLC payment type code. Primary key.
+        tests:
+          - not_null
+          - unique
+
+      - name: payment_label
+        description: Human-readable payment method label.
+        tests:
+          - not_null
+
+      - name: is_cashless
+        description: True for card and in-app payments; false for cash and disputes.
+        tests:
+          - not_null
+
+  - name: fct_trips
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - trip_id
+            - vehicle_class
+    description: >
+      Core trip fact table. One row per trip across all three vehicle classes.
+      Incremental — each dbt run appends new pickup dates and deduplicates on
+      trip_id. Denormalized with zone names and boroughs to eliminate dashboard
+      join overhead at query time.
+
+      Derived metrics (fare_per_mile, tip_pct, trip_duration_minutes) are computed
+      here so the dashboard queries stay simple.
+    columns:
+      - name: trip_id
+        description: >
+          Surrogate key inherited from staging. Unique within a vehicle class,
+          but not globally — use (trip_id, vehicle_class) as the composite key.
+        tests:
+          - not_null
+
+      - name: vehicle_class
+        description: Vehicle class. FK to dim_vehicle_class.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_vehicle_class')
+              field: vehicle_class
+
+      - name: pickup_date
+        description: Date of pickup. FK to dim_date.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_day
+              config:
+                severity: warn
+
+      - name: pickup_zone_id
+        description: TLC zone ID for pickup location. FK to dim_zones.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_zones')
+              field: location_id
+
+      - name: dropoff_zone_id
+        description: TLC zone ID for dropoff location. FK to dim_zones.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_zones')
+              field: location_id
+
+      - name: payment_type_id
+        description: Payment type code. FK to dim_payment_types. 0 for HVFHV trips.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_payment_types')
+              field: payment_type_id
+
+      - name: fare_amount
+        description: Base fare amount in USD.
+        tests:
+          - not_null
+
+      - name: total_amount
+        description: Total charged to the passenger in USD.
+        tests:
+          - not_null
+
+      - name: trip_duration_minutes
+        description: Elapsed trip time in minutes (dropoff_at minus pickup_at).
+
+      - name: fare_per_mile
+        description: Fare amount divided by trip distance. Null when distance is zero.
+
+      - name: tip_pct
+        description: Tip as a percentage of fare_amount. Null when fare is zero.
+
+      - name: is_rideshare
+        description: Denormalized from dim_vehicle_class. True for HVFHV trips.
+        tests:
+          - not_null
