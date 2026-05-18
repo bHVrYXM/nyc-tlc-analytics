@@ -4,9 +4,10 @@ models:
   - name: int_trips_unified
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - trip_id
-            - vehicle_class
+          arguments:
+            combination_of_columns:
+              - trip_id
+              - vehicle_class
     description: >
       Union of all three TLC vehicle classes (yellow taxi, green taxi, HVFHV/rideshare)
       on the canonical schema defined in staging. This is the single source of truth
@@ -35,7 +36,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['yellow', 'green', 'hvfhv']
+              arguments:
+                values: ['yellow', 'green', 'hvfhv']
 
       - name: pickup_at
         description: Trip pickup timestamp (canonical name across all vehicle classes).
@@ -57,16 +59,18 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('dim_zones')
-              field: location_id
+              arguments:
+                to: ref('dim_zones')
+                field: location_id
 
       - name: dropoff_zone_id
         description: TLC location ID for the dropoff zone. FK to dim_zones.
         tests:
           - not_null
           - relationships:
-              to: ref('dim_zones')
-              field: location_id
+              arguments:
+                to: ref('dim_zones')
+                field: location_id
 
       - name: fare_amount
         description: >
@@ -113,7 +117,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['yellow', 'green', 'hvfhv']
+              arguments:
+                values: ['yellow', 'green', 'hvfhv']
 
       - name: rejection_reason
         description: >
@@ -123,13 +128,14 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values:
-                - invalid_timestamps
-                - null_pickup_zone
-                - null_dropoff_zone
-                - negative_fare
-                - negative_total
-                - zero_distance
+              arguments:
+                values:
+                  - invalid_timestamps
+                  - null_pickup_zone
+                  - null_dropoff_zone
+                  - negative_fare
+                  - negative_total
+                  - zero_distance
 
       - name: pickup_at
         description: Raw pickup timestamp (may be null or invalid — that's the point).

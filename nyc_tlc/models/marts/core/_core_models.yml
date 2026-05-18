@@ -24,7 +24,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island', 'EWR', 'Unknown', 'N/A']
+              arguments:
+                values: ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island', 'EWR', 'Unknown', 'N/A']
 
       - name: service_zone
         description: TLC service zone classification (Yellow Zone, Boro Zone, etc.).
@@ -39,7 +40,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['Airport', 'Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island', 'Other / Unknown']
+              arguments:
+                values: ['Airport', 'Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island', 'Other / Unknown']
 
   - name: dim_date
     description: >
@@ -72,7 +74,8 @@ models:
           - not_null
           - unique
           - accepted_values:
-              values: ['yellow', 'green', 'hvfhv']
+              arguments:
+                values: ['yellow', 'green', 'hvfhv']
 
       - name: display_name
         description: Human-readable label for dashboard filters.
@@ -110,9 +113,10 @@ models:
   - name: fct_trips
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - trip_id
-            - vehicle_class
+          arguments:
+            combination_of_columns:
+              - trip_id
+              - vehicle_class
     description: >
       Core trip fact table. One row per trip across all three vehicle classes.
       Incremental — each dbt run appends new pickup dates and deduplicates on
@@ -134,16 +138,18 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('dim_vehicle_class')
-              field: vehicle_class
+              arguments:
+                to: ref('dim_vehicle_class')
+                field: vehicle_class
 
       - name: pickup_date
         description: Date of pickup. FK to dim_date.
         tests:
           - not_null
           - relationships:
-              to: ref('dim_date')
-              field: date_day
+              arguments:
+                to: ref('dim_date')
+                field: date_day
               config:
                 severity: warn
 
@@ -152,24 +158,27 @@ models:
         tests:
           - not_null
           - relationships:
-              to: ref('dim_zones')
-              field: location_id
+              arguments:
+                to: ref('dim_zones')
+                field: location_id
 
       - name: dropoff_zone_id
         description: TLC zone ID for dropoff location. FK to dim_zones.
         tests:
           - not_null
           - relationships:
-              to: ref('dim_zones')
-              field: location_id
+              arguments:
+                to: ref('dim_zones')
+                field: location_id
 
       - name: payment_type_id
         description: Payment type code. FK to dim_payment_types. 0 for HVFHV trips.
         tests:
           - not_null
           - relationships:
-              to: ref('dim_payment_types')
-              field: payment_type_id
+              arguments:
+                to: ref('dim_payment_types')
+                field: payment_type_id
 
       - name: fare_amount
         description: Base fare amount in USD.

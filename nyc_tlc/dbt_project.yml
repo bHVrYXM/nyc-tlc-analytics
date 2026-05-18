@@ -22,6 +22,14 @@ clean-targets:         # directories to be removed by `dbt clean`
   - "target"
   - "dbt_packages"
 
+# Silence a false-positive deprecation warning in dbt 1.9–1.11 where
+# having a `config:` key alongside `arguments:` in a generic test is
+# incorrectly flagged as top-level arguments.
+flags:
+  warn_error_options:
+    silence:
+      - MissingArgumentsPropertyInGenericTestDeprecation
+
 
 # Configuring models
 # Full documentation: https://docs.getdbt.com/docs/configuring-models
